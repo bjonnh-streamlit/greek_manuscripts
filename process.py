@@ -1,36 +1,24 @@
-import textract
-from cltk.lemmatize import GreekBackoffLemmatizer
-from docx import Document
-from docx.enum.section import WD_SECTION_START
 from cltk.alphabet.text_normalization import cltk_normalize
-from enum import Enum
-import re
+from cltk.lemmatize import GreekBackoffLemmatizer
 from collections import defaultdict
+# noinspection PyPackageRequirements
+from docx import Document
+# noinspection PyPackageRequirements
+from docx.enum.section import WD_SECTION_START
+# noinspection PyPackageRequirements
 from docx.shared import Pt
+import re
+import textract
 
 FILE = "data/Galen Simpl Med 01 (Convert'd) Books 06-11.doc"
 
 # Sections are either enclosed in [] or starting with vol
-regexp_section = re.compile(r"((^\[.*\]$)|(^vol.*$))")
-regexp_line = re.compile(r"([\d\.]*)(\s?)(.*)")
-
-
-class DecoderStates(Enum):
-    UNKNOWN = 0
-    IN_SECTION = 1
-    IN_TEXT = 2
-    IN_SUBSECTION = 3
+regexp_section = re.compile(r"((^\[.*]$)|(^vol.*$))")
+regexp_line = re.compile(r"([\d.]*)(\s?)(.*)")
 
 
 class Decoder:
-    ALLOWED_STATES_TRANSITIONS = {
-        DecoderStates.UNKNOWN: [DecoderStates.IN_SECTION],
-        DecoderStates.IN_SECTION: [DecoderStates.IN_SUBSECTION],
-        DecoderStates.IN_TEXT: []
-    }
-
     def __init__(self):
-        self.STATE = DecoderStates.UNKNOWN
         self.section = ""
         self.subsection = ""
         self.line_counter = 1
@@ -51,7 +39,6 @@ class Decoder:
     def lemma(self, debug=False):
         lemmatizer = GreekBackoffLemmatizer()
         output = defaultdict(set)
-        total = len(self.word_occurrences)
 
         words = set()
         for word in self.word_occurrences.keys():
@@ -64,20 +51,20 @@ class Decoder:
 
         return sorted(output.items())
 
-    def process_textline(self, textline):
-        words = textline.split()
+    def process_text_line(self, text_line):
+        words = text_line.split()
         for word in words:
             cleaned_word = word.replace(",", "").replace(".", "").replace(":", "").replace("·", "").strip()
             if cleaned_word != "":
                 self.word_occurrences[cleaned_word].append(self.current_reference())
                 self.reversed_word_occurrences[cleaned_word[::-1]].append(self.current_reference())
 
-    def process_line(self, line):
-        clean_line = line.strip()
+    def process_line(self, _line):
+        clean_line = _line.strip()
         if clean_line == "":
             return
 
-        line_match = regexp_line.match(line)
+        line_match = regexp_line.match(_line)
         if regexp_section.match(clean_line):
             self.set_section(clean_line)
             self.line_counter = 0
@@ -86,17 +73,18 @@ class Decoder:
             subsection = line_match.group(1)
             if subsection != "":
                 self.subsection = subsection
-            self.process_textline(line_match.group(3).strip())
+            self.process_text_line(line_match.group(3).strip())
         else:
             print(f"Can't handle {clean_line}")
 
-    def word_info(self, word, source):
+    @staticmethod
+    def word_info(word, source):
         content = source[word]
 
         return f"({len(content)}) {', '.join(content)}"
 
-    def index(self, reversed=False):
-        if reversed:
+    def index(self, reverse=False):
+        if reverse:
             source = self.reversed_word_occurrences
         else:
             source = self.word_occurrences
@@ -112,6 +100,7 @@ class Decoder:
         return sorted(counts.items(), key=lambda kv: kv[1], reverse=True)
 
 
+# noinspection HttpUrlsUsage
 WNS_COLS_NUM = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}num"
 
 
@@ -126,7 +115,9 @@ class DocxGenerator:
         font.name = "Galatia sil"
         font.size = Pt(10.5)
 
+        # Make the document two columns, most efficient way I found, but uses internal attributes of python-docx
         section = document.add_section(WD_SECTION_START.CONTINUOUS)
+        # noinspection PyProtectedMember
         section._sectPr.xpath("./w:cols")[0].set(WNS_COLS_NUM, str(2))
         self.p = document.add_paragraph()
         self.document = document
@@ -137,23 +128,16 @@ class DocxGenerator:
         if bold:
             out.bold = True
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self, _, __, ___):
         self.document.save(self.filename)
 
 
-text = textract.process(FILE).decode('utf-8')
+full_text = textract.process(FILE).decode('utf-8')
 
 decoder = Decoder()
 
-for line in text.splitlines():
+for line in full_text.splitlines():
     decoder.process_line(line)
-
-# Processing of Galien takes ~ 3s
-# Lemmatization of Galien takes ~ 22min
-
-# for it in decoder.count()[0:100]:
-#    print(it)
-
 
 print("Generating direct index")
 with DocxGenerator("out/index.docx") as generator:
@@ -163,7 +147,7 @@ with DocxGenerator("out/index.docx") as generator:
 
 print("Generating inverted index")
 with DocxGenerator("out/index_inverse.docx") as generator:
-    for i in decoder.index(reversed=True):
+    for i in decoder.index(reverse=True):
         generator.write(i[0], bold=True)
         generator.write(f": {i[1]}\n")
 
