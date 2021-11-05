@@ -1,3 +1,4 @@
 python-docx
 textract
 cltk
+greek-accentuation
