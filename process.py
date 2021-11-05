@@ -7,6 +7,7 @@ from docx import Document
 from docx.enum.section import WD_SECTION_START
 # noinspection PyPackageRequirements
 from docx.shared import Pt, Inches
+from itertools import groupby
 import re
 import sys
 import textract
@@ -29,6 +30,16 @@ def greek_word_basifier(word):
     return sort_key
 
 
+class Reference:
+    def __init__(self, section, subsection, line):
+        self.section = section
+        self.subsection = subsection
+        self.line = line
+
+    def nice_print(self):
+        return f"{self.subsection} ({self.section}.{self.line})"
+
+
 class Decoder:
     def __init__(self):
         self.section = ""
@@ -46,7 +57,7 @@ class Decoder:
         self.section = section.replace("[", "").replace("]", "")
 
     def current_reference(self):
-        return f"{self.subsection} ({self.section}.{self.line_counter})"
+        return Reference(self.section, self.subsection, self.line_counter)
 
     def process_text_line(self, text_line):
         words = text_line.split()
@@ -75,10 +86,18 @@ class Decoder:
             print(f"Can't handle {clean_line}")
 
     @staticmethod
-    def word_info(word, source):
+    def nice_printer_references(content):
+        """Prints the sections only when it is a new one."""
+        output = ""
+        for thing in groupby(content, lambda entry: entry.subsection):
+            list_of_subref = [f"{ref.section}.{ref.line}" for ref in thing[1]]
+            output += f"{thing[0]} ({' ‖ '.join(list_of_subref)})"
+        return output
+
+    def word_info(self, word, source):
         content = source[word]
 
-        return f"({len(content)}) {', '.join(content)}"
+        return f"({len(content)}) {self.nice_printer_references(content)}"
 
     def index(self, reverse=False):
         if reverse:
