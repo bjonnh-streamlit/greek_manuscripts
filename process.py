@@ -8,11 +8,13 @@ from docx.enum.section import WD_SECTION_START
 # noinspection PyPackageRequirements
 from docx.shared import Pt, Inches
 import re
+import sys
 import textract
 from greek_accentuation.characters import base
 
 FILE = "data/Galen Simpl Med 01 (Convert'd) Books 06-11.doc"
-DEBUG = False
+# Limits the output files size so they are easier to look through
+DEBUG = True
 
 # Sections are either enclosed in [] or starting with vol
 regexp_section = re.compile(r"((^\[.*]$)|(^vol.*$))")
@@ -92,7 +94,8 @@ class Decoder:
 
         for word in self.word_occurrences.keys():
             counts[word] = len(self.word_occurrences[word])
-        return sorted(counts.items(), key=lambda kv: (kv[1], greek_word_basifier(kv[0])), reverse=True)
+        # We have to use a little trick here as we want to reverse the numbers but not the words.
+        return sorted(counts.items(), key=lambda kv: (sys.maxsize - kv[1], greek_word_basifier(kv[0])))
 
     def lemma(self, debug=False):
         """Produce the lemmatized sorted output"""
