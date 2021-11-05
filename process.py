@@ -9,7 +9,6 @@ from docx.enum.section import WD_SECTION_START
 from docx.shared import Pt, Inches
 from itertools import groupby
 import re
-import sys
 import textract
 from greek_accentuation.characters import base
 
@@ -114,7 +113,7 @@ class Decoder:
         for word in self.word_occurrences.keys():
             counts[word] = len(self.word_occurrences[word])
         # We have to use a little trick here as we want to reverse the numbers but not the words.
-        return sorted(counts.items(), key=lambda kv: (sys.maxsize - kv[1], greek_word_basifier(kv[0])))
+        return sorted(counts.items(), key=lambda kv: (-kv[1], greek_word_basifier(kv[0])))
 
     def lemma(self, debug=False):
         """Produce the lemmatized sorted output"""
