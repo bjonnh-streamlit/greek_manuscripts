@@ -15,7 +15,7 @@ from greek_accentuation.characters import base
 
 FILE = "data/Galen Simpl Med 01 (Convert'd) Books 06-11.doc"
 # Limits the output files size so they are easier to look through
-DEBUG = True
+DEBUG = False
 
 # Sections are either enclosed in [] or starting with vol
 regexp_section = re.compile(r"((^\[.*]$)|(^vol.*$))")
