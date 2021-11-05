@@ -130,7 +130,9 @@ class Decoder:
             lemma = lemmatizer.lemmatize([word])[0]
             output[lemma[1]].add(word)
 
-        return sorted(output.items(), key=lambda kv: greek_word_basifier(kv[0]))
+        output_sorted = [(entry[0], sorted(entry[1], key=lambda kv: greek_word_basifier(kv))) for entry in
+                         sorted(output.items(), key=lambda kv: greek_word_basifier(kv[0]))]
+        return output_sorted
 
 
 # noinspection HttpUrlsUsage
