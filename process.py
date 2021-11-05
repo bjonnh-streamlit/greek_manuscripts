@@ -211,7 +211,6 @@ with DocxGenerator("out/frequency.docx") as generator:
 
 print("Generating lemma list")
 with DocxGenerator("out/lemma.docx") as generator:
-    generator.write("Generated with the CLTK Backoff Lematizer\n\n", bold=True)
     for i in decoder.lemma(debug=True):
         generator.write(i[0], bold=True)
         generator.write(f": {', '.join(i[1])}")
