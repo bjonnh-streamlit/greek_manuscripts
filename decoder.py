@@ -1,20 +1,16 @@
+import os.path
+from collections import defaultdict
+from itertools import groupby
+
 from cltk.alphabet.text_normalization import cltk_normalize
 from cltk.lemmatize import GreekBackoffLemmatizer
-from collections import defaultdict
-# noinspection PyPackageRequirements
-from docx import Document
-# noinspection PyPackageRequirements
-from docx.enum.section import WD_SECTION_START
-# noinspection PyPackageRequirements
-from docx.shared import Pt, Inches
-from itertools import groupby
-import re
-import textract
+from cltk.data.fetch import FetchCorpus
+
+from reference import Reference
+
 from greek_accentuation.characters import base
 
-FILE = "data/Galen Simpl Med 01 (Convert'd) Books 06-11.doc"
-# Limits the output files size so they are easier to look through
-DEBUG = False
+import re
 
 # Sections are either enclosed in [] or starting with vol
 regexp_section = re.compile(r"((^\[.*]$)|(^vol.*$))")
@@ -27,16 +23,6 @@ def greek_word_basifier(word):
     str_word = str(word)
     sort_key = "".join([base(ch) for ch in str_word]) + str_word
     return sort_key
-
-
-class Reference:
-    def __init__(self, section, subsection, line):
-        self.section = section
-        self.subsection = subsection
-        self.line = line
-
-    def nice_print(self):
-        return f"{self.subsection} ({self.section}.{self.line})"
 
 
 class Decoder:
@@ -105,7 +91,7 @@ class Decoder:
             source = self.word_occurrences
 
         for word in sorted(source.keys(), key=lambda kv: greek_word_basifier(kv)):
-            yield word, decoder.word_info(word, source)
+            yield word, self.word_info(word, source)
 
     def count(self):
         counts = {}
@@ -117,6 +103,9 @@ class Decoder:
 
     def lemma(self, debug=False):
         """Produce the lemmatized sorted output"""
+        corpus_downloader = FetchCorpus(language="grc")
+        corpus_downloader.import_corpus("grc_models_cltk")
+
         lemmatizer = GreekBackoffLemmatizer()
         output = defaultdict(set)
 
@@ -132,87 +121,3 @@ class Decoder:
         output_sorted = [(entry[0], sorted(entry[1], key=lambda kv: greek_word_basifier(kv))) for entry in
                          sorted(output.items(), key=lambda kv: greek_word_basifier(kv[0]))]
         return output_sorted
-
-
-# noinspection HttpUrlsUsage
-WNS_COLS_NUM = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}num"
-
-
-class DocxGenerator:
-    def __init__(self, filename):
-        self.filename = filename
-        self.p = None
-
-    def __enter__(self):
-        document = Document()
-        style = document.styles["Normal"]
-        font = style.font
-        font.name = "Galatia sil"
-        font.size = Pt(10.5)
-
-        # Make the document two columns, most efficient way I found, but uses internal attributes of python-docx
-        section = document.add_section(WD_SECTION_START.CONTINUOUS)
-        # noinspection PyProtectedMember
-        section._sectPr.xpath("./w:cols")[0].set(WNS_COLS_NUM, str(2))
-
-        paragraph_format = document.styles['Normal'].paragraph_format
-        paragraph_format.left_indent = Inches(0.25)
-        paragraph_format.first_line_indent = Inches(-0.25)
-        self.document = document
-
-        self.new_paragraph()
-
-        return self
-
-    def new_paragraph(self):
-        self.p = self.document.add_paragraph()
-
-    def write(self, text, bold=False):
-        out = self.p.add_run(text)
-        if bold:
-            out.bold = True
-
-    def __exit__(self, _, __, ___):
-        self.document.save(self.filename)
-
-
-full_text = textract.process(FILE).decode('utf-8')
-
-decoder = Decoder()
-
-count = 100
-
-for line in full_text.splitlines():
-    decoder.process_line(line)
-    if DEBUG:
-        count -= 1
-        if count == 0:
-            break
-
-print("Generating direct index")
-with DocxGenerator("out/index.docx") as generator:
-    for i in decoder.index():
-        generator.write(i[0], bold=True)
-        generator.write(f": {i[1]}")
-        generator.new_paragraph()
-
-print("Generating inverted index")
-with DocxGenerator("out/index_inverse.docx") as generator:
-    for i in decoder.index(reverse=True):
-        generator.write(i[0], bold=True)
-        generator.write(f": {i[1]}")
-        generator.new_paragraph()
-
-print("Generating frequency list")
-with DocxGenerator("out/frequency.docx") as generator:
-    for i in decoder.count():
-        generator.write(i[0], bold=True)
-        generator.write(f": {i[1]}")
-        generator.new_paragraph()
-
-print("Generating lemma list")
-with DocxGenerator("out/lemma.docx") as generator:
-    for i in decoder.lemma(debug=True):
-        generator.write(i[0], bold=True)
-        generator.write(f": {', '.join(i[1])}")
-        generator.new_paragraph()
