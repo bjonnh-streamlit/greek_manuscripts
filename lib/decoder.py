@@ -21,7 +21,7 @@ def greek_word_basifier(word):
     """A function that helps sorting words by their base letters not diacritics ones
     We add the word at the end to have a correct ordering."""
     str_word = str(word)
-    sort_key = "".join([base(ch) for ch in str_word]) + str_word
+    sort_key = "".join([base(ch) for ch in str_word]) + " " + str_word
     return sort_key
 
 
