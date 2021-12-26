@@ -6,7 +6,7 @@ from cltk.alphabet.text_normalization import cltk_normalize
 from cltk.lemmatize import GreekBackoffLemmatizer
 from cltk.data.fetch import FetchCorpus
 
-from reference import Reference
+from .reference import Reference
 
 from greek_accentuation.characters import base
 
@@ -15,7 +15,7 @@ import re
 # Sections are either enclosed in [] or starting with vol
 regexp_section = re.compile(r"((^\[.*]$)|(^vol.*$))")
 regexp_line = re.compile(r"([\d.]*)(\s?)(.*)")
-
+regexp_removechars = re.compile(r"[,\.:·\[\]]*")
 
 def greek_word_basifier(word):
     """A function that helps sorting words by their base letters not diacritics ones
@@ -47,7 +47,7 @@ class Decoder:
     def process_text_line(self, text_line):
         words = text_line.split()
         for word in words:
-            cleaned_word = word.replace(",", "").replace(".", "").replace(":", "").replace("·", "").strip()
+            cleaned_word = re.sub(regexp_removechars, "", word).strip()
             if cleaned_word != "":
                 self.word_occurrences[cleaned_word].append(self.current_reference())
                 self.reversed_word_occurrences[cleaned_word[::-1]].append(self.current_reference())

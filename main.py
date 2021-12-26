@@ -1,10 +1,10 @@
 import os
 from zipfile import ZipFile
+import sys
 
 import textract
-from decoder import Decoder
-from docxgenerator import DocxGenerator
-import sys
+from lib.decoder import Decoder
+from lib.docxgenerator import DocxGenerator
 
 FILE = sys.argv[1]
 # Limits the output files size so they are easier to look through
@@ -22,6 +22,8 @@ for line in full_text.splitlines():
         count -= 1
         if count == 0:
             break
+
+os.makedirs("out", exist_ok=True)
 
 print("Generating direct index")
 with DocxGenerator("out/index.docx") as generator:
