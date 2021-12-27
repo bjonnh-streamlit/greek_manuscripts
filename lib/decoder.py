@@ -57,6 +57,8 @@ class Decoder:
         self.line_counter = 1
         self.nlp = None
 
+        self.unfinished_word = ""
+
         # word to positions as list
         self.word_occurrences = defaultdict(list)
 
@@ -91,7 +93,13 @@ class Decoder:
             subsection = line_match.group(1)
             if subsection != "":
                 self.subsection = subsection
-            self.process_text_line(line_match.group(3).strip())
+            text_line = line_match.group(3).strip().split(" ")
+            # If line ends by -, we have to keep that word and join it to the next line
+            if text_line[-1][-1] == "-":
+                self.unfinished_word = text_line[-1].rstrip("-")
+                text_line = text_line[:-1]
+            self.process_text_line(self.unfinished_word + " ".join(text_line))
+            self.unfinished_word = ""
         else:
             print(f"Can't handle {clean_line}")
 
