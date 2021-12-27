@@ -17,11 +17,33 @@ regexp_section = re.compile(r"((^\[.*]$)|(^vol.*$))")
 regexp_line = re.compile(r"([\d.]*)(\s?)(.*)")
 regexp_removechars = re.compile(r"[,\.:·\[\]]*")
 
+basifier_cache = {}
+all_letters = set()
+
+
 def greek_word_basifier(word):
     """A function that helps sorting words by their base letters not diacritics ones
     We add the word at the end to have a correct ordering."""
+    if word in basifier_cache:
+        return basifier_cache[word]
+
     str_word = str(word)
-    sort_key = "".join([base(ch) for ch in str_word]) + " " + str_word
+    word = ""
+    for ch in str_word:
+        bch = base(ch)
+        if bch in ["α", "ε", "ι", "ο"]:
+            if ch in ["ά", "έ", "ί", "ό"]:
+                word += f"{bch}·10"  # Big cheat here, but we want to be able to sort things properly and natural sorting doesn't
+            elif ch in ["ὰ", "ὲ", "ὶ", "ὸ"]:
+                word += f"{bch}·11"
+            elif ch in ["α", "ε", "ι", "ο"]:
+                word += f"{bch}·12"
+
+        else:
+            word += bch
+    sort_key = word + " " + str_word
+
+    basifier_cache[word] = sort_key
     return sort_key
 
 
@@ -73,16 +95,16 @@ class Decoder:
     @staticmethod
     def nice_printer_references(content):
         """Prints the sections only when it is a new one."""
-        output = ""
+        output = []
         for thing in groupby(content, lambda entry: entry.subsection):
             list_of_subref = [f"{ref.section}.{ref.line}" for ref in thing[1]]
-            output += f"{thing[0]} ({' ‖ '.join(list_of_subref)})"
-        return output
+            output += [f"{thing[0]} ({' ‖ '.join(list_of_subref)})"]
+        return "; ".join(output) + "."
 
     def word_info(self, word, source):
         content = source[word]
 
-        return f"({len(content)}) {self.nice_printer_references(content)}"
+        return f"({len(content)}) − {self.nice_printer_references(content)}"
 
     def index(self, reverse=False):
         if reverse:
