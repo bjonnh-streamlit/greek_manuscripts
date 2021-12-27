@@ -12,6 +12,8 @@ from greek_accentuation.characters import base
 
 import re
 
+from pyuca import Collator
+
 # Sections are either enclosed in [] or starting with vol
 regexp_section = re.compile(r"((^\[.*]$)|(^vol.*$))")
 regexp_line = re.compile(r"([\d.]*)(\s?)(.*)")
@@ -49,6 +51,7 @@ def greek_word_basifier(word):
 
 class Decoder:
     def __init__(self):
+        self.pyuca_collator = Collator()
         self.section = ""
         self.subsection = ""
         self.line_counter = 1
@@ -112,7 +115,7 @@ class Decoder:
         else:
             source = self.word_occurrences
 
-        for word in sorted(source.keys(), key=lambda kv: greek_word_basifier(kv)):
+        for word in sorted(source.keys(), key=self.pyuca_collator.sort_key):
             yield word, self.word_info(word, source)
 
     def count(self):
@@ -121,7 +124,7 @@ class Decoder:
         for word in self.word_occurrences.keys():
             counts[word] = len(self.word_occurrences[word])
         # We have to use a little trick here as we want to reverse the numbers but not the words.
-        return sorted(counts.items(), key=lambda kv: (-kv[1], greek_word_basifier(kv[0])))
+        return sorted(counts.items(), key=lambda kv: (-kv[1], self.pyuca_collator.sort_key(kv[0])))
 
     def lemma(self, debug=False):
         """Produce the lemmatized sorted output"""
@@ -140,6 +143,6 @@ class Decoder:
             lemma = lemmatizer.lemmatize([word])[0]
             output[lemma[1]].add(word)
 
-        output_sorted = [(entry[0], sorted(entry[1], key=lambda kv: greek_word_basifier(kv))) for entry in
-                         sorted(output.items(), key=lambda kv: greek_word_basifier(kv[0]))]
+        output_sorted = [(entry[0], sorted(entry[1], key=self.pyuca_collator.sort_key)) for entry in
+                         sorted(output.items(), key=lambda kv:self.pyuca_collator.sort_key(kv[0]))]
         return output_sorted
