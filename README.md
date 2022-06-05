@@ -1,2 +1,6 @@
-You need Python >3.9
-and Antiword so textract can open word files.
+
+# Usage
+````shell
+docker build -t greek .
+docker run -v $PWD:/src:ro -v $PWD/out:/out -it greek python /src/main.py "/src/data/file.doc" /out
+````
