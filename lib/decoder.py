@@ -6,6 +6,7 @@ from cltk.alphabet.text_normalization import cltk_normalize
 from cltk.lemmatize import GreekBackoffLemmatizer
 from cltk.data.fetch import FetchCorpus
 
+from .logger import Logger
 from .reference import Reference
 
 from greek_accentuation.characters import base
@@ -13,6 +14,8 @@ from greek_accentuation.characters import base
 import re
 
 from pyuca import Collator
+
+from lib.validator import Validator
 
 # Sections are either enclosed in [] or starting with vol
 regexp_section = re.compile(r"((^\[.*]$)|(^vol.*$))")
@@ -41,6 +44,9 @@ def greek_word_basifier(word):
             elif ch in ["α", "ε", "ι", "ο"]:
                 word += f"{bch}·12"
 
+        elif bch in ["Α", "Ν", "Β", "Ξ", "Γ", "Ο", "Δ", "Π", "Ε", "Ρ", "Ζ", "Σ", "Η", "Τ", "Θ", "Υ", "Ι", "Φ", "Κ",
+                     "Χ", "Λ", "Ψ", "Μ", "Ω"]:
+            word += f"{bch}ααα"
         else:
             word += bch
     sort_key = word + " " + str_word
@@ -50,8 +56,11 @@ def greek_word_basifier(word):
 
 
 class Decoder:
-    def __init__(self):
+    def __init__(self, logger: Logger):
         self.pyuca_collator = Collator()
+
+        self.logger = logger
+        self.validator = Validator()
         self.section = ""
         self.subsection = ""
         self.line_counter = 1
@@ -74,6 +83,10 @@ class Decoder:
     def process_text_line(self, text_line):
         words = text_line.split()
         for word in words:
+            valid = self.validator.validate(word)
+            if valid is not True:
+                self.logger.error(f"Invalid string {valid} in word {word} at {self.current_reference()}")
+
             cleaned_word = re.sub(regexp_removechars, "", word).strip()
             if cleaned_word != "":
                 self.word_occurrences[cleaned_word].append(self.current_reference())
@@ -146,7 +159,7 @@ class Decoder:
         for word in self.word_occurrences.keys():
             words.add(cltk_normalize(word))
         if debug:
-            print(f" Normalized, found {len(words)} unique words")
+            self.logger.info(f" Normalized, found {len(words)} unique words")
         for word in words:
             lemma = lemmatizer.lemmatize([word])[0]
             output[lemma[1]].add(word)
