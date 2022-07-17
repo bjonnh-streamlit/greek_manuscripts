@@ -3,3 +3,4 @@ textract
 cltk
 greek-accentuation
 pyuca
+streamlit
