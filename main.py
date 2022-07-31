@@ -19,7 +19,7 @@ DEBUG = False
 
 def processor(file, original_file_name, out):
     output_zip = io.BytesIO()
-    full_text = textract.process(file, extension="doc").decode('utf-8')
+    full_text = textract.process(file, extension="docx").decode('utf-8')
 
     log_file = open(f"{out}/log.txt", "w")
     logger = Logger()
@@ -88,7 +88,7 @@ def processor(file, original_file_name, out):
 st.title("Greek manuscript processor")
 
 
-uploaded_file = st.file_uploader("Manuscript file", type="doc", help="Please upload a manuscript file in the right format")
+uploaded_file = st.file_uploader("Manuscript file", type="docx", help="Please upload a manuscript file in the right format")
 
 if uploaded_file is not None:
     def process_streamlit():
