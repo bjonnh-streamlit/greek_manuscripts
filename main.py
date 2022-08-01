@@ -69,13 +69,13 @@ def processor(file, original_file_name, out):
             generator.new_paragraph()
 
     log_file.close()
-    myzip = ZipFile(output_zip, "w")
-    myzip.write(f"{out}/index.docx", arcname="index.docx")
-    myzip.write(f"{out}/index_inverse.docx", arcname="index_inverse.docx")
-    myzip.write(f"{out}/frequency.docx", arcname="frequency.docx")
-    myzip.write(f"{out}/lemma.docx", arcname="lemma.docx")
-    myzip.write(f"{out}/log.txt", arcname="log.txt")
-    myzip.write(file, arcname=original_file_name)
+    with ZipFile(output_zip, "w") as myzip:
+        myzip.write(f"{out}/index.docx", arcname="index.docx")
+        myzip.write(f"{out}/index_inverse.docx", arcname="index_inverse.docx")
+        myzip.write(f"{out}/frequency.docx", arcname="frequency.docx")
+        myzip.write(f"{out}/lemma.docx", arcname="lemma.docx")
+        myzip.write(f"{out}/log.txt", arcname="log.txt")
+        myzip.write(file, arcname=original_file_name)
 
     st.download_button("Download zip file with processed document", output_zip,
                         file_name="output_"+original_file_name.replace("docx", "zip"))
