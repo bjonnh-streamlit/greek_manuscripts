@@ -78,7 +78,7 @@ def processor(file, original_file_name, out):
     myzip.write(file, arcname=original_file_name)
 
     st.download_button("Download zip file with processed document", output_zip,
-                        file_name=original_file_name.replace("docx", "zip"))
+                        file_name="output_"+original_file_name.replace("docx", "zip"))
     messages = ""
     for message in logger.messages:
         messages += message.__str__() + "\n"
