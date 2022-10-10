@@ -1,6 +1,7 @@
 import os.path
 from collections import defaultdict
 from itertools import groupby
+import itertools
 
 from cltk.alphabet.text_normalization import cltk_normalize
 from cltk.lemmatize import GreekBackoffLemmatizer
@@ -21,6 +22,7 @@ from lib.validator import Validator
 regexp_section = re.compile(r"((^\[.*]$)|(^vol.*$))")
 regexp_line = re.compile(r"([\d.]*)(\s?)(.*)")
 regexp_removechars = re.compile(r"[,\.:·\[\]]*")
+regexp_removechars_nlp = re.compile(r"[:·\[\]]*")
 
 basifier_cache = {}
 all_letters = set()
@@ -65,6 +67,8 @@ class Decoder:
         self.subsection = ""
         self.line_counter = 1
         self.nlp = None
+        self._full_text = defaultdict(list)
+        self._current_reference = None
 
         self.unfinished_word = ""
 
@@ -74,13 +78,33 @@ class Decoder:
         # reversed index
         self.reversed_word_occurrences = defaultdict(list)
 
+    def full_text(self):
+        return " ".join(itertools.chain(*self._full_text.values()))
+
+    def full_text_by_section(self):
+        old_section = None
+        blocks = []
+        current_block = []
+        for reference in self._full_text.keys():
+            if reference.section != old_section:
+                old_section = reference.section
+                if len(current_block) > 0:
+                    blocks.append(current_block)
+                current_block = []
+            current_block += self._full_text[reference]
+
+        return blocks
+
     def set_section(self, section):
         self.section = section.replace("[", "").replace("]", "")
 
     def current_reference(self):
-        return Reference(self.section, self.subsection, self.line_counter)
+        local_ref = Reference(self.section, self.subsection, self.line_counter)
+        if self._current_reference != local_ref:
+            self._current_reference = local_ref
+        return self._current_reference
 
-    def process_text_line(self, text_line):
+    def process_text_line(self, text_line, keep_full_text=False):
         words = text_line.split()
         for word in words:
             valid = self.validator.validate(word)
@@ -88,11 +112,14 @@ class Decoder:
                 self.logger.error(f"Invalid string {valid} in word {word} at {self.current_reference()}")
 
             cleaned_word = re.sub(regexp_removechars, "", word).strip()
+
             if cleaned_word != "":
                 self.word_occurrences[cleaned_word].append(self.current_reference())
                 self.reversed_word_occurrences[cleaned_word[::-1]].append(self.current_reference())
+                if keep_full_text:
+                    self._full_text[self.current_reference()].append(cleaned_word)
 
-    def process_line(self, _line):
+    def process_line(self, _line, keep_full_text=False):
         clean_line = _line.strip()
         if clean_line == "":
             return
@@ -111,7 +138,7 @@ class Decoder:
             if text_line[-1][-1] == "-":
                 self.unfinished_word = text_line[-1].rstrip("-")
                 text_line = text_line[:-1]
-            self.process_text_line(self.unfinished_word + " ".join(text_line))
+            self.process_text_line(self.unfinished_word + " ".join(text_line), keep_full_text=keep_full_text)
             self.unfinished_word = ""
         else:
             print(f"Can't handle {clean_line}")
