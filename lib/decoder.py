@@ -1,7 +1,7 @@
-import os.path
 from collections import defaultdict
 from itertools import groupby
 import itertools
+from typing import Optional
 
 from cltk.alphabet.text_normalization import cltk_normalize
 from cltk.lemmatize import GreekBackoffLemmatizer
@@ -58,7 +58,10 @@ def greek_word_basifier(word):
 
 
 class Decoder:
-    def __init__(self, logger: Logger):
+    def __init__(self, logger: Optional[Logger] = None):
+        if logger is None:
+            logger = Logger()
+
         self.pyuca_collator = Collator()
 
         self.logger = logger
@@ -107,6 +110,7 @@ class Decoder:
     def process_text_line(self, text_line, keep_full_text=False):
         words = text_line.split()
         for word in words:
+            print(f"Processing word {word}")
             valid = self.validator.validate(word)
             if valid is not True:
                 self.logger.error(f"Invalid string {valid} in word {word} at {self.current_reference()}")
@@ -121,6 +125,7 @@ class Decoder:
 
     def process_line(self, _line, keep_full_text=False):
         clean_line = _line.strip()
+
         if clean_line == "":
             return
 
@@ -134,12 +139,15 @@ class Decoder:
             if subsection != "":
                 self.subsection = subsection
             text_line = line_match.group(3).strip().split(" ")
+            # We append the unfinished word on next line
+            if len(text_line) > 0 and self.unfinished_word != "":
+                text_line[0] = self.unfinished_word + text_line[0]
+
             # If line ends by -, we have to keep that word and join it to the next line
             if text_line[-1][-1] == "-":
                 self.unfinished_word = text_line[-1].rstrip("-")
                 text_line = text_line[:-1]
-            self.process_text_line(self.unfinished_word + " ".join(text_line), keep_full_text=keep_full_text)
-            self.unfinished_word = ""
+            self.process_text_line(" ".join(text_line), keep_full_text=keep_full_text)
         else:
             print(f"Can't handle {clean_line}")
 
