@@ -110,7 +110,6 @@ class Decoder:
     def process_text_line(self, text_line, keep_full_text=False):
         words = text_line.split()
         for word in words:
-            print(f"Processing word {word}")
             valid = self.validator.validate(word)
             if valid is not True:
                 self.logger.error(f"Invalid string {valid} in word {word} at {self.current_reference()}")
@@ -149,7 +148,7 @@ class Decoder:
                 text_line = text_line[:-1]
             self.process_text_line(" ".join(text_line), keep_full_text=keep_full_text)
         else:
-            print(f"Can't handle {clean_line}")
+            self.logger.error(f"Can't handle {clean_line}")
 
     @staticmethod
     def nice_printer_references(content):

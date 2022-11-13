@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import spacy
 import nltk
 from nltk import ngrams
 import numpy as np
@@ -124,5 +123,5 @@ def __main__():
     #print(combine_ngrams_to_repeated_couples(["1", "2", "3", "4"], 4))
 
 
-
-__main__()
+if __name__ == '__main__':
+    __main__()
