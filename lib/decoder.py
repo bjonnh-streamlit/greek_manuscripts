@@ -7,6 +7,7 @@ from cltk.alphabet.text_normalization import cltk_normalize
 from cltk.lemmatize import GreekBackoffLemmatizer
 from cltk.data.fetch import FetchCorpus
 
+from .decoder_state import DecoderState
 from .logger import Logger
 from .reference import Reference
 
@@ -20,7 +21,7 @@ from lib.validator import Validator
 
 # Sections are either enclosed in [] or starting with vol
 regexp_section = re.compile(r"((^\[.*]$)|(^vol.*$))")
-regexp_line = re.compile(r"([\d.]*)(\s?)(.*)")
+regexp_line = re.compile(r"([\d.]*)(\s?)(.*)")  # Numbers in the form xxx(.yyy.zzz...) are sub sections the rest is text
 regexp_removechars = re.compile(r"[,\.:·\[\]]*")
 regexp_removechars_nlp = re.compile(r"[:·\[\]]*")
 
@@ -29,7 +30,7 @@ all_letters = set()
 
 
 def greek_word_basifier(word):
-    """A function that helps sorting words by their base letters not diacritics ones
+    """A function that helps to sort words by their base letters not diacritics ones
     We add the word at the end to have a correct ordering."""
     if word in basifier_cache:
         return basifier_cache[word]
@@ -62,16 +63,22 @@ class Decoder:
         if logger is None:
             logger = Logger()
 
+        self.state = DecoderState()
+
         self.pyuca_collator = Collator()
 
         self.logger = logger
         self.validator = Validator()
+
+        # Current section
         self.section = ""
+        # Current subsection
         self.subsection = ""
         self.line_counter = 1
         self.nlp = None
-        self._full_text = defaultdict(list)
+
         self._current_reference = None
+        self._short_current_reference = None
 
         self.unfinished_word = ""
 
@@ -82,45 +89,63 @@ class Decoder:
         self.reversed_word_occurrences = defaultdict(list)
 
     def full_text(self):
-        return " ".join(itertools.chain(*self._full_text.values()))
+        return " ".join(itertools.chain(*self.state.full_text.values()))
 
     def full_text_by_section(self):
         old_section = None
         blocks = []
         current_block = []
-        for reference in self._full_text.keys():
+        for reference in self.state.full_text.keys():
             if reference.section != old_section:
                 old_section = reference.section
                 if len(current_block) > 0:
                     blocks.append(current_block)
                 current_block = []
-            current_block += self._full_text[reference]
+            current_block += self.state.full_text[reference]
 
         return blocks
 
     def set_section(self, section):
         self.section = section.replace("[", "").replace("]", "")
+        self.reset_unfinished_word()
 
-    def current_reference(self):
+    def set_subsection(self, subsection):
+        self.subsection = subsection
+        self.reset_unfinished_word()
+
+    def reset_unfinished_word(self):
+        self.unfinished_word = ""
+
+    # Computes and store the current reference in self._current_reference
+    # it stores a reference to the section and subsection as well in self._short_current_reference
+    # and we keep a list of all references in self.short_references
+    def set_current_reference(self) -> None:
         local_ref = Reference(self.section, self.subsection, self.line_counter)
+        short_local_ref = Reference(self.section, self.subsection)
         if self._current_reference != local_ref:
             self._current_reference = local_ref
-        return self._current_reference
+        if self._short_current_reference != short_local_ref:
+            self._short_current_reference = short_local_ref
+            self.state.short_references.append(self._short_current_reference)
+            self.state.sections.add(short_local_ref.section)
+            self.state.subsections[short_local_ref.section].add(short_local_ref.subsection)
 
     def process_text_line(self, text_line, keep_full_text=False):
+        self.set_current_reference()
+
         words = text_line.split()
         for word in words:
             valid = self.validator.validate(word)
             if valid is not True:
-                self.logger.error(f"Invalid string {valid} in word {word} at {self.current_reference()}")
+                self.logger.error(f"Invalid string {valid} in word {word} at {self._current_reference}")
 
             cleaned_word = re.sub(regexp_removechars, "", word).strip()
 
             if cleaned_word != "":
-                self.word_occurrences[cleaned_word].append(self.current_reference())
-                self.reversed_word_occurrences[cleaned_word[::-1]].append(self.current_reference())
+                self.word_occurrences[cleaned_word].append(self._current_reference)
+                self.reversed_word_occurrences[cleaned_word[::-1]].append(self._current_reference)
                 if keep_full_text:
-                    self._full_text[self.current_reference()].append(cleaned_word)
+                    self.state.full_text[self._short_current_reference].append(cleaned_word)
 
     def process_line(self, _line, keep_full_text=False):
         clean_line = _line.strip()
@@ -136,7 +161,8 @@ class Decoder:
             self.line_counter += 1
             subsection = line_match.group(1)
             if subsection != "":
-                self.subsection = subsection
+                self.set_subsection(subsection)
+
             text_line = line_match.group(3).strip().split(" ")
             # We append the unfinished word on next line
             if len(text_line) > 0 and self.unfinished_word != "":

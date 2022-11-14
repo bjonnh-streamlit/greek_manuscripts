@@ -1,10 +1,10 @@
 python-docx
 textract
-cltk==1.1.5
+cltk==1.1.6
 greek-accentuation
 pyuca
-streamlit==1.13.0
-spacy==3.4.1
+streamlit==1.14.1
+spacy==3.4.3
 nltk
-numpy==1.23.3
-pandas==1.5.0
+numpy==1.23.4
+pandas==1.5.1

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import tempfile
 
 import nltk
 from nltk import ngrams
@@ -10,13 +11,23 @@ import textract
 from lib.decoder import Decoder
 from lib.logger import Logger
 
-DEBUG = False
+import streamlit as st
 
+from lib.reference import Reference
+
+DEBUG = False
+logger = Logger()
+
+
+
+st.set_page_config(
+    page_title="Analysis",
+    page_icon="🔬",
+    layout="wide"
+)
 
 def processor(file):
     full_text = textract.process(file, extension="docx").decode('utf-8')
-
-    logger = Logger()
 
     decoder = Decoder(logger)
 
@@ -34,25 +45,17 @@ def processor(file):
     messages = ""
     for message in logger.messages:
         messages += message.__str__() + "\n"
-    print(messages)
+    logger.info(messages)
 
     full_text_as_list = decoder.full_text_by_section()
-    print(f"We have {len(full_text_as_list)} sections.")
+    logger.info(f"We have {len(full_text_as_list)} sections.")
     data = list(itertools.chain.from_iterable(full_text_as_list))
 
     matrix, vocab_index = generate_co_occurrence_matrix(data, 8)
     data_matrix = pd.DataFrame(matrix, index=vocab_index, columns=vocab_index)
     words_by_occurence = data_matrix.sum(axis=0).sort_values(ascending=False)
-    print(words_by_occurence[0:10])
-    start_by = [word for word in words_by_occurence.index if word.startswith("πυρε")]+["ἑκτικῶν"]
-    print(start_by)
 
-    #word = "φύλλο" #words_by_occurence.index[0]
-    for word in start_by:
-        print(f"Top 10 words related to {word}: ")
-        top10 = data_matrix[word].sort_values(ascending=False)[0:10]
-        print(top10[top10 > 0])
-
+    return decoder, words_by_occurence, data_matrix
 
     #nlp = spacy.load("el_core_news_lg")
     # for doc in nlp.pipe(full_text): #, disable=["tok2vec", "tagger", "parser", "attribute_ruler", "lemmatizer"]):
@@ -118,10 +121,46 @@ def generate_co_occurrence_matrix(corpus, distance):
     return co_occurrence_matrix, vocab_index
 
 
-def __main__():
-    processor("./data/Galen Simpl Med 06-08 checked December 10 2021.docx")
-    #print(combine_ngrams_to_repeated_couples(["1", "2", "3", "4"], 4))
+st.title("Greek manuscript analyzer")
 
 
-if __name__ == '__main__':
-    __main__()
+uploaded_file = st.file_uploader('Manuscript file', type='docx', help='Please upload a manuscript file in the right format')
+
+@st.experimental_memo
+def process_data(uploaded_file_name):
+    logger.info(f"Opening {uploaded_file_name}")
+    with tempfile.NamedTemporaryFile() as in_file:
+        in_file.write(uploaded_file.read())
+        in_file.flush()
+        decoder, words_by_occurence, data_matrix = processor(in_file.name)
+        return decoder.state, words_by_occurence, data_matrix
+
+
+if uploaded_file is not None:
+    st.session_state['uploaded_file'] = uploaded_file.name
+
+    st.write("Uploaded file:", uploaded_file.name)
+
+    decoder_state, words_by_occurence, data_matrix = process_data(uploaded_file.name)
+    sections = list(decoder_state.sections)
+    sections.sort()
+
+    selected_section = st.selectbox('Section', sections)
+    subsections = list(decoder_state.subsections[selected_section])
+    subsections.sort()
+    selected_subsection = st.selectbox('Subsection', subsections)
+
+    text = decoder_state.full_text[Reference(selected_section, selected_subsection)]
+
+    st.subheader("Text")
+    st.write(" ".join(text))
+    st.subheader("Top 10 words")
+    st.dataframe(words_by_occurence)
+    st.subheader("Word lookup")
+    word_lookup = st.text_input("Word to lookup", "")
+    if word_lookup != '' and word_lookup in data_matrix.index:
+        top10 = data_matrix[word_lookup].sort_values(ascending=False)[0:10]
+        st.write(f"Top 10 words related to {word_lookup}")
+        st.dataframe(top10[top10 > 0])
+
+

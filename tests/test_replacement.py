@@ -1,7 +1,7 @@
 import unittest
 from lib.decoder import Decoder
 
-class Replacement(unittest.TestCase):
+class TestReplacement(unittest.TestCase):
     def test_replacement_word(self):
         decoder = Decoder()
         decoder.process_text_line("a,b.c·d[e]f:g")

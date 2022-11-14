@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
-import os
 import io
-import time
 from zipfile import ZipFile
 import tempfile
-import sys
 
 import textract
 from lib.decoder import Decoder
@@ -15,6 +12,12 @@ import streamlit as st
 
 # Limits the output files size so they are easier to look through
 DEBUG = False
+
+st.set_page_config(
+    page_title="Converter",
+    page_icon="📚",
+    layout="wide"
+)
 
 
 def processor(file, original_file_name, out):
