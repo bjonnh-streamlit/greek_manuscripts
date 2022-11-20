@@ -27,6 +27,8 @@ regexp_removechars_nlp = re.compile(r"[:·\[\]]*")
 
 basifier_cache = {}
 all_letters = set()
+# Some words used internally for sections etc
+excluded_words = {"tit", "sec"}
 
 
 def greek_word_basifier(word):
@@ -141,7 +143,7 @@ class Decoder:
 
             cleaned_word = re.sub(regexp_removechars, "", word).strip()
 
-            if cleaned_word != "":
+            if (cleaned_word != "") and (cleaned_word not in excluded_words):
                 self.word_occurrences[cleaned_word].append(self._current_reference)
                 self.reversed_word_occurrences[cleaned_word[::-1]].append(self._current_reference)
                 if keep_full_text:
