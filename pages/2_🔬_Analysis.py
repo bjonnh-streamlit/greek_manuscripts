@@ -171,21 +171,21 @@ if uploaded_file is not None:
     else:
         word_lookup = ""
 
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        distance = st.slider("Distance in words", min_value=1, max_value=20, value=8)
-    with col2:
-        forward = st.checkbox("Forward matching", value=True)
-    with col3:
-        backward = st.checkbox("Backward matching")
+    if word_lookup != '':
+        col1, col2 = st.columns(2)
+        with col1:
+            distance = st.slider("Distance in words", min_value=1, max_value=20, value=8)
+        with col2:
+            forward = st.checkbox("Forward matching", value=True)
+            backward = st.checkbox("Backward matching")
 
-    if (not forward) and (not backward):
-        st.error("Sorry you need to select at least one or both of Forward and backward")
-    else:
-        words_by_occurence, data_matrix = get_matrix(data, distance=distance, forward=forward, backward=backward)
+        if (not forward) and (not backward):
+            st.error("Sorry you need to select at least one or both of Forward and backward")
+        else:
+            words_by_occurence, data_matrix = get_matrix(data, distance=distance, forward=forward, backward=backward)
 
-        if word_lookup != '' and word_lookup in data_matrix.index:
-            top10 = data_matrix[word_lookup].sort_values(ascending=False)[0:10]
-            st.subheader(f"Top 10 words related to {word_lookup} (in the whole document)")
-            x = pd.DataFrame(top10[top10 > 0]).transpose()
-            st.dataframe(x)
+            if word_lookup in data_matrix.index:
+                top10 = data_matrix[word_lookup].sort_values(ascending=False)[0:10]
+                st.subheader(f"Top 10 words related to {word_lookup} (in the whole document)")
+                x = pd.DataFrame(top10[top10 > 0]).transpose()
+                st.dataframe(x)

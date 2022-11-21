@@ -2,23 +2,26 @@ import streamlit as st
 import base64
 from pathlib import Path
 
-from last_changes import last_changes
+from last_changes import last_changes, VERSION
 
-VERSION="0.01"
 
 def img_to_bytes(img_path):
     img_bytes = Path(img_path).read_bytes()
     encoded = base64.b64encode(img_bytes).decode()
     return encoded
+
+
 def img_to_html(img_path):
     img_html = "<img src='data:image/png;base64,{}' class='img'>".format(
       img_to_bytes(img_path)
     )
     return img_html
 
+
 st.set_page_config(
     page_title="Pyzantine",
     page_icon="👋",
+    layout="wide"
 )
 
 st.write(f"# Welcome to the Pyzantine v{VERSION}")
