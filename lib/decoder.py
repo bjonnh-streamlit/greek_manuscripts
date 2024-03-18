@@ -261,6 +261,7 @@ class Decoder:
         html_document = f"""<!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8">
     <title>Document</title>
     <style>
        a {{
