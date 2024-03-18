@@ -1,14 +1,13 @@
-FROM python:3.10
-
-RUN pip install --upgrade pip
-
-RUN useradd -m python
-RUN mkdir /src /data && chown python /src /data
-RUN apt update && apt -y install antiword
-USER python
-WORKDIR /src
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-COPY requirements-dev.txt .
-RUN pip install -r requirements-dev.txt
-
+FROM docker.io/library/python:3.11-slim
+RUN apt update && apt install -y antiword git
+RUN mkdir /app /data
+RUN useradd -m nonroot
+RUN chown nonroot /data
+USER nonroot
+WORKDIR /app
+COPY poetry.lock pyproject.toml ./
+RUN pip install poetry
+ENV PATH="${PATH}:/home/nonroot/.local/bin"
+ENV SHELL="/usr/bin/bash"
+RUN poetry config virtualenvs.create true \
+    && poetry install --no-interaction --no-ansi

@@ -3,6 +3,11 @@ build:
 	docker build -t greek .
 
 .PHONY: run-main
-CMD=docker run -it --rm -v ${PWD}:/src greek python -m streamlit run
+DOCKER_COMMAND=docker run -it --rm -v ${PWD}:/app greek
+STREAMLIT_COMMAND=${DOCKER_COMMANT} python -m streamlit run
 run-main: build
-	${CMD} Hello.py
+	${STREAMLIT_COMMAND} Hello.py
+
+.PHONY: shell
+shell: build
+	${DOCKER_COMMAND} bash -l -c "poetry shell"

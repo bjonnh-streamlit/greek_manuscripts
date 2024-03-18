@@ -1,3 +1,4 @@
+import hashlib
 from collections import defaultdict
 from itertools import groupby
 import itertools
@@ -9,6 +10,7 @@ from cltk.data.fetch import FetchCorpus
 
 from .decoder_state import DecoderState
 from .logger import Logger
+from .normalizer import Normalizer
 from .reference import Reference
 
 from greek_accentuation.characters import base
@@ -66,6 +68,7 @@ class Decoder:
             logger = Logger()
 
         self.state = DecoderState()
+        self.normalizer = Normalizer()
 
         self.pyuca_collator = Collator()
 
@@ -136,7 +139,8 @@ class Decoder:
         self.set_current_reference()
 
         words = text_line.split()
-        for word in words:
+        for pre_word in words:
+            word = self.normalizer.process(pre_word)
             valid = self.validator.validate(word)
             if valid is not True:
                 self.logger.error(f"Invalid string {valid} in word {word} at {self._current_reference}")
@@ -146,8 +150,11 @@ class Decoder:
             if (cleaned_word != "") and (cleaned_word not in excluded_words):
                 self.word_occurrences[cleaned_word].append(self._current_reference)
                 self.reversed_word_occurrences[cleaned_word[::-1]].append(self._current_reference)
+                if cleaned_word == "δήξεως":
+                    print(f"Adding δήξεως section {self._current_reference} {self._short_current_reference}")
                 if keep_full_text:
                     self.state.full_text[self._short_current_reference].append(cleaned_word)
+                    self.state.full_text_word_linked[self._short_current_reference].append((word, cleaned_word))
 
     def process_line(self, _line, keep_full_text=False):
         clean_line = _line.strip()
@@ -187,19 +194,21 @@ class Decoder:
             output += [f"{thing[0]} ({' ‖ '.join(list_of_subref)})"]
         return "; ".join(output) + "."
 
-    def word_info(self, word, source):
+    def word_info(self, word, source, raw=False):
         content = source[word]
+        if raw:
+            return {"count": len(content), "references": content}
+        else:
+            return f"({len(content)}) − {self.nice_printer_references(content)}"
 
-        return f"({len(content)}) − {self.nice_printer_references(content)}"
-
-    def index(self, reverse=False):
+    def index(self, reverse=False, raw=False):
         if reverse:
             source = self.reversed_word_occurrences
         else:
             source = self.word_occurrences
 
         for word in sorted(source.keys(), key=self.pyuca_collator.sort_key):
-            yield word, self.word_info(word, source)
+            yield word, self.word_info(word, source, raw)
 
     def count(self):
         counts = {}
@@ -229,3 +238,67 @@ class Decoder:
         output_sorted = [(entry[0], sorted(entry[1], key=self.pyuca_collator.sort_key)) for entry in
                          sorted(output.items(), key=lambda kv:self.pyuca_collator.sort_key(kv[0]))]
         return output_sorted
+
+    def to_html(self):
+        content = ""
+        content += "<h2>Text</h2>"
+        print(self.state.full_text_word_linked.keys())
+        for reference in self.state.full_text_word_linked.keys():
+            current_block = self.state.full_text_word_linked[reference]
+            content += f"<a name=\"sec_{reference.section}_{reference.subsection}\"><h3>{reference.nice_print()}</h3></a>\n"
+            for word in current_block:
+                content += f"<a href=\"#word_{word[1]}\">{word[0]} </a>"
+
+        content += "<h2>Index</h2>\n"
+        for word, word_info in self.index(raw=True):
+            content += f"\n<a name=\"word_{word}\"><h3>{word}</h3></a>\n"
+            content += f"<p>{word_info['count']} occurrences<br>"
+            for thing in groupby(word_info["references"], lambda entry: entry.subsection):
+                list_of_subref = [f"<a class=\"underlined\" onclick=\"highlightLinks('#word_{word}')\" href=\"#sec_{ref.section}_{ref.subsection}\">{ref.section}.{ref.line}</a>" for ref in thing[1]]
+                content += "; ".join([f"{thing[0]} ({' ‖ '.join(list_of_subref)})"]) + " - "
+            content += "</p>"
+
+        html_document = f"""<!DOCTYPE html>
+<html>
+<head>
+    <title>Document</title>
+    <style>
+       a {{
+            text-decoration: none;
+            color: black; 
+        }}
+        a:hover {{
+            color: #AAAAFF;
+        }}
+        .underlined {{ 
+            text-decoration: underline; 
+            color: #AAAAAA;
+        }}
+        .highlighted {{
+            background-color: yellow;
+        }}
+    </style>
+</head>
+<body>
+    {content}
+</body>
+<script>
+function highlightLinks(href) {{
+    var links = document.getElementsByTagName('a');
+
+    // Iterate over the links
+    for (var i = 0; i < links.length; i++) {{
+        // Check if the link's text matches the input text
+        if (links[i].getAttribute('href') === href) {{
+            links[i].classList.add('highlighted');
+        }} else {{
+            links[i].classList.remove('highlighted');
+        }}
+    }}
+}}
+</script>
+</html>"""
+        return html_document
+
+
+# Missing ref: 08.16.08 (12.096.15)

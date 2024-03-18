@@ -7,8 +7,9 @@ WNS_COLS_NUM = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}nu
 
 
 class DocxGenerator:
-    def __init__(self, filename):
+    def __init__(self, filename, two_columns=True):
         self.filename = filename
+        self.two_columns = two_columns
         self.p = None
 
     def __enter__(self):
@@ -19,9 +20,10 @@ class DocxGenerator:
         font.size = Pt(10.5)
 
         # Make the document two columns, most efficient way I found, but uses internal attributes of python-docx
-        section = document.add_section(WD_SECTION_START.CONTINUOUS)
-        # noinspection PyProtectedMember
-        section._sectPr.xpath("./w:cols")[0].set(WNS_COLS_NUM, str(2))
+        if self.two_columns:
+            section = document.add_section(WD_SECTION_START.CONTINUOUS)
+            # noinspection PyProtectedMember
+            section._sectPr.xpath("./w:cols")[0].set(WNS_COLS_NUM, str(2))
 
         paragraph_format = document.styles['Normal'].paragraph_format
         paragraph_format.left_indent = Inches(0.25)

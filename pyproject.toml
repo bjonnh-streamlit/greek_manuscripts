@@ -1,0 +1,26 @@
+[tool.poetry]
+name = "greek-manuscripts"
+version = "0.2.0"
+description = "Analyze ancient greek manuscripts"
+authors = ["Jonathan Bisson <bjonnh-git@bjonnh.net>"]
+license = "GPL v3"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.11,<3.12"  # Because of CLTK
+python-docx = "^1.1.0"
+textract = "^1.6.5"
+cltk = "^1.2.1"
+greek-accentuation = "^1.2.0"
+pyuca = "^1.2"
+streamlit = "^1.32.2"
+nltk = "^3.8.1"
+numpy = "^1.26.4"
+pandas = "^2.2.1"
+pytest = "^8.1.1"
+flake8 = "^7.0.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
