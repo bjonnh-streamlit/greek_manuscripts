@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <style>{{ css }}</style>
+</head>
+<body class="flex">
+<button id="toggleSidebar" class="p-4 focus:outline-none">
+    <svg class="w-6 h-6" fill="none" stroke="#202040" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path>
+    </svg>
+</button>
+
+<div id="sidebar"
+     class="fixed inset-y-0 left-0 transform -translate-x-full transition-transform duration-200 ease-in-out bg-gray-800 text-white w-32 p-4">
+    <button id="closeSidebar" class="text-white mb-4">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+    <h2 class="text-lg font-semibold">Menu</h2>
+    <nav>
+
+        <ul>
+        {% for item in sidebar %}
+            <li><a class="text-white" href="{{ item.link }}">{{ item.title }}</a></li>
+        {% endfor %}
+        </ul>
+    </nav>
+</div>
+<div class="flex-1 py-4 px-16">
+    {{ content }}
+</div>
+</body>
+<script>
+    function highlightLinks(href) {
+        const links = document.getElementsByTagName('a');
+
+        for (let i = 0; i < links.length; i++) {
+            if (links[i].getAttribute('href') === href) {
+                links[i].classList.add('highlighted');
+            } else {
+                links[i].classList.remove('highlighted');
+            }
+        }
+    }
+
+    document.getElementById('toggleSidebar').addEventListener('click', function() {
+      document.getElementById('sidebar').classList.toggle('-translate-x-full');
+    });
+
+    document.getElementById('closeSidebar').addEventListener('click', function() {
+      document.getElementById('sidebar').classList.add('-translate-x-full');
+    });
+</script>
+</html>

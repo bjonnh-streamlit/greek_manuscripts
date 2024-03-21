@@ -70,8 +70,6 @@ class Decoder:
         self.state = DecoderState()
         self.normalizer = Normalizer()
 
-        self.pyuca_collator = Collator()
-
         self.logger = logger
         self.validator = Validator()
 
@@ -87,11 +85,9 @@ class Decoder:
 
         self.unfinished_word = ""
 
-        # word to positions as list
-        self.word_occurrences = defaultdict(list)
+    def set_title(self, title):
+        self.state.title = title
 
-        # reversed index
-        self.reversed_word_occurrences = defaultdict(list)
 
     def full_text(self):
         return " ".join(itertools.chain(*self.state.full_text.values()))
@@ -148,8 +144,8 @@ class Decoder:
             cleaned_word = re.sub(regexp_removechars, "", word).strip()
 
             if (cleaned_word != "") and (cleaned_word not in excluded_words):
-                self.word_occurrences[cleaned_word].append(self._current_reference)
-                self.reversed_word_occurrences[cleaned_word[::-1]].append(self._current_reference)
+                self.state.word_occurrences[cleaned_word].append(self._current_reference)
+                self.state.reversed_word_occurrences[cleaned_word[::-1]].append(self._current_reference)
                 if cleaned_word == "δήξεως":
                     print(f"Adding δήξεως section {self._current_reference} {self._short_current_reference}")
                 if keep_full_text:
@@ -185,38 +181,13 @@ class Decoder:
         else:
             self.logger.error(f"Can't handle {clean_line}")
 
-    @staticmethod
-    def nice_printer_references(content):
-        """Prints the sections only when it is a new one."""
-        output = []
-        for thing in groupby(content, lambda entry: entry.subsection):
-            list_of_subref = [f"{ref.section}.{ref.line}" for ref in thing[1]]
-            output += [f"{thing[0]} ({' ‖ '.join(list_of_subref)})"]
-        return "; ".join(output) + "."
-
-    def word_info(self, word, source, raw=False):
-        content = source[word]
-        if raw:
-            return {"count": len(content), "references": content}
-        else:
-            return f"({len(content)}) − {self.nice_printer_references(content)}"
-
-    def index(self, reverse=False, raw=False):
-        if reverse:
-            source = self.reversed_word_occurrences
-        else:
-            source = self.word_occurrences
-
-        for word in sorted(source.keys(), key=self.pyuca_collator.sort_key):
-            yield word, self.word_info(word, source, raw)
-
     def count(self):
         counts = {}
 
-        for word in self.word_occurrences.keys():
-            counts[word] = len(self.word_occurrences[word])
+        for word in self.state.word_occurrences.keys():
+            counts[word] = len(self.state.word_occurrences[word])
         # We have to use a little trick here as we want to reverse the numbers but not the words.
-        return sorted(counts.items(), key=lambda kv: (-kv[1], self.pyuca_collator.sort_key(kv[0])))
+        return sorted(counts.items(), key=lambda kv: (-kv[1], self.state.pyuca_collator.sort_key(kv[0])))
 
     def lemma(self, debug=False):
         """Produce the lemmatized sorted output"""
@@ -227,7 +198,7 @@ class Decoder:
         output = defaultdict(set)
 
         words = set()
-        for word in self.word_occurrences.keys():
+        for word in self.state.word_occurrences.keys():
             words.add(cltk_normalize(word))
         if debug:
             self.logger.info(f" Normalized, found {len(words)} unique words")
@@ -235,71 +206,6 @@ class Decoder:
             lemma = lemmatizer.lemmatize([word])[0]
             output[lemma[1]].add(word)
 
-        output_sorted = [(entry[0], sorted(entry[1], key=self.pyuca_collator.sort_key)) for entry in
-                         sorted(output.items(), key=lambda kv:self.pyuca_collator.sort_key(kv[0]))]
+        output_sorted = [(entry[0], sorted(entry[1], key=self.state.pyuca_collator.sort_key)) for entry in
+                         sorted(output.items(), key=lambda kv: self.state.pyuca_collator.sort_key(kv[0]))]
         return output_sorted
-
-    def to_html(self):
-        content = ""
-        content += "<h2>Text</h2>"
-        print(self.state.full_text_word_linked.keys())
-        for reference in self.state.full_text_word_linked.keys():
-            current_block = self.state.full_text_word_linked[reference]
-            content += f"<a name=\"sec_{reference.section}_{reference.subsection}\"><h3>{reference.nice_print()}</h3></a>\n"
-            for word in current_block:
-                content += f"<a href=\"#word_{word[1]}\">{word[0]} </a>"
-
-        content += "<h2>Index</h2>\n"
-        for word, word_info in self.index(raw=True):
-            content += f"\n<a name=\"word_{word}\"><h3>{word}</h3></a>\n"
-            content += f"<p>{word_info['count']} occurrences<br>"
-            for thing in groupby(word_info["references"], lambda entry: entry.subsection):
-                list_of_subref = [f"<a class=\"underlined\" onclick=\"highlightLinks('#word_{word}')\" href=\"#sec_{ref.section}_{ref.subsection}\">{ref.section}.{ref.line}</a>" for ref in thing[1]]
-                content += "; ".join([f"{thing[0]} ({' ‖ '.join(list_of_subref)})"]) + " - "
-            content += "</p>"
-
-        html_document = f"""<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>Document</title>
-    <style>
-       a {{
-            text-decoration: none;
-            color: black; 
-        }}
-        a:hover {{
-            color: #AAAAFF;
-        }}
-        .underlined {{ 
-            text-decoration: underline; 
-            color: #AAAAAA;
-        }}
-        .highlighted {{
-            background-color: yellow;
-        }}
-    </style>
-</head>
-<body>
-    {content}
-</body>
-<script>
-function highlightLinks(href) {{
-    var links = document.getElementsByTagName('a');
-
-    // Iterate over the links
-    for (var i = 0; i < links.length; i++) {{
-        // Check if the link's text matches the input text
-        if (links[i].getAttribute('href') === href) {{
-            links[i].classList.add('highlighted');
-        }} else {{
-            links[i].classList.remove('highlighted');
-        }}
-    }}
-}}
-</script>
-</html>"""
-        return html_document
-
-
-# Missing ref: 08.16.08 (12.096.15)

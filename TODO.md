@@ -1,2 +1,1 @@
-- Handle the different forms of diacritics
 - Ability to switch fonts (e.g. EB Garamond) 

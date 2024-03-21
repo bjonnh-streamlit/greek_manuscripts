@@ -1,0 +1,45 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+    a {
+        @apply no-underline text-black;
+    }
+
+
+
+    .underlined {
+        @apply underline text-gray-400;
+    }
+
+    .highlighted {
+        @apply bg-yellow-400;
+    }
+
+    .sidebar a {
+        @apply text-white;
+    }
+
+
+}
+
+/* Ensure the hamburger button is visible */
+#toggleSidebar {
+    z-index: 20;
+    position: fixed;
+    top: 15px;
+    left: 15px;
+}
+
+/* Ensure sidebar is above other content but below the toggle button */
+#sidebar {
+    z-index: 10;
+}
+a, a.dull {
+    @apply hover:text-gray-400;
+}
+
+.text a, .index a {
+        @apply hover:text-blue-200;
+}
